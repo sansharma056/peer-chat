@@ -1,8 +1,8 @@
 type ButtonProps = {
 	value: string;
-	onChange: () => void;
+	onClick: () => void;
 };
-const Button = ({ value, onChange: handleClick }: ButtonProps) => {
+const Button = ({ value, onClick: handleClick }: ButtonProps) => {
 	return (
 		<button type="button" onClick={handleClick}>
 			{value}

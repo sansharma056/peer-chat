@@ -21,7 +21,7 @@ const Home = () => {
 					value={roomId}
 					setValue={setRoomId}
 				/>
-				<Button value="Join Chat" onChange={handleClick} />
+				<Button value="Join Chat" onClick={handleClick} />
 			</div>
 		</DocumentTitle>
 	);
