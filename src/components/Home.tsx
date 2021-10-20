@@ -15,13 +15,18 @@ const Home = () => {
 	return (
 		<DocumentTitle title="PeerChat - Home">
 			<div className="h-screen flex flex-col items-center justify-center">
-				<Input
-					placeholder="enter a room id"
-					name="room-id"
-					value={roomId}
-					setValue={setRoomId}
-				/>
-				<Button value="Join Chat" onClick={handleClick} />
+				<h1 className="text-8xl text-center">peer chat</h1>
+				<div className="mt-5">
+					<Input
+						placeholder="enter a room id"
+						name="room-id"
+						value={roomId}
+						setValue={setRoomId}
+					/>
+				</div>
+				<div className="mt-5">
+					<Button value="Join Chat" onClick={handleClick} />
+				</div>
 			</div>
 		</DocumentTitle>
 	);
