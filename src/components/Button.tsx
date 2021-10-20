@@ -4,7 +4,11 @@ type ButtonProps = {
 };
 const Button = ({ value, onClick: handleClick }: ButtonProps) => {
 	return (
-		<button type="button" onClick={handleClick}>
+		<button
+			className="p-2 w-max border-black border-2 hover:bg-gray-200 active:bg-gray-400"
+			type="button"
+			onClick={handleClick}
+		>
 			{value}
 		</button>
 	);
