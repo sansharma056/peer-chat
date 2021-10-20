@@ -14,7 +14,7 @@ const Input = ({ name, placeholder, value, setValue }: InputProps) => {
 
 	return (
 		<input
-			className="border-2 border-black"
+			className="p-2.5 border-2 border-black"
 			name={name}
 			type="text"
 			placeholder={placeholder}
