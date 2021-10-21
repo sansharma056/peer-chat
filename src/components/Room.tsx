@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import DocumentTitle from "react-document-title";
 import Button from "./Button";
@@ -10,28 +10,27 @@ type RoomParams = {
 const Room = () => {
 	const { id } = useParams<RoomParams>();
 	const videoRef = useRef<HTMLVideoElement>(null);
-
-	async function startCapture(): Promise<MediaStream | null> {
-		let captureStream: MediaStream | null = null;
-
-		try {
-			captureStream = await navigator.mediaDevices.getDisplayMedia();
-		} catch (error) {
-			console.error(error);
-		}
-
-		return captureStream;
-	}
+	const [isScreenShared, setScreenShared] = useState(false);
 
 	async function handleScreenShare() {
-		console.log("screen shared");
-
-		const captureStream = await startCapture();
-
-		if (videoRef.current) {
-			videoRef.current.srcObject = captureStream;
-			console.log(captureStream);
+		if(isScreenShared) {
+			if (videoRef.current && videoRef.current.srcObject) {
+				const stream = videoRef.current.srcObject as MediaStream;
+				const tracks = stream.getTracks();
+				tracks.forEach(track => track.stop());
+				videoRef.current.srcObject = null;
+			}
+		} else {
+			try {
+				if(	videoRef.current) {
+					videoRef.current.srcObject = await navigator.mediaDevices.getDisplayMedia();
+				}
+			} catch (error) {
+				console.error(error);
+			}
 		}
+
+		setScreenShared(!isScreenShared);
 	}
 
 	function handleMicrophoneShare() {
@@ -55,7 +54,7 @@ const Room = () => {
 				</div>
 
 				<div className="flex flex-grow justify-center mt-10 bg-gray-100 w-11/12">
-					<video className="w-4/5" ref={videoRef}></video>
+					<video autoPlay className="w-auto" ref={videoRef}></video>
 				</div>
 			</div>
 		</DocumentTitle>
