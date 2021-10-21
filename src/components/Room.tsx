@@ -9,21 +9,26 @@ type RoomParams = {
 
 const Room = () => {
 	const { id } = useParams<RoomParams>();
+
 	const videoRef = useRef<HTMLVideoElement>(null);
+	const audioRef = useRef<HTMLAudioElement>(null);
+
 	const [isScreenShared, setScreenShared] = useState(false);
+	const [isMicrophoneShared, setMicrophoneShared] = useState(false);
 
 	async function handleScreenShare() {
-		if(isScreenShared) {
+		if (isScreenShared) {
 			if (videoRef.current && videoRef.current.srcObject) {
 				const stream = videoRef.current.srcObject as MediaStream;
 				const tracks = stream.getTracks();
-				tracks.forEach(track => track.stop());
+				tracks.forEach((track) => track.stop());
 				videoRef.current.srcObject = null;
 			}
 		} else {
 			try {
-				if(	videoRef.current) {
-					videoRef.current.srcObject = await navigator.mediaDevices.getDisplayMedia();
+				if (videoRef.current) {
+					videoRef.current.srcObject =
+						await navigator.mediaDevices.getDisplayMedia();
 				}
 			} catch (error) {
 				console.error(error);
@@ -33,7 +38,29 @@ const Room = () => {
 		setScreenShared(!isScreenShared);
 	}
 
-	function handleMicrophoneShare() {
+	async function handleMicrophoneShare() {
+		if (isMicrophoneShared) {
+			if (audioRef.current) {
+				const stream = audioRef.current.srcObject as MediaStream;
+				const tracks = stream.getTracks();
+				tracks.forEach((track) => track.stop());
+				audioRef.current.srcObject = null;
+			}
+		} else {
+			try {
+				if (audioRef.current) {
+					audioRef.current.srcObject =
+						await navigator.mediaDevices.getUserMedia({
+							video: false,
+							audio: true,
+						});
+				}
+			} catch (error) {
+				console.error(error);
+			}
+		}
+
+		setMicrophoneShared(!isMicrophoneShared);
 		console.log("microphone shared");
 	}
 
@@ -55,6 +82,7 @@ const Room = () => {
 
 				<div className="flex flex-grow justify-center mt-10 bg-gray-100 w-11/12">
 					<video autoPlay className="w-auto" ref={videoRef}></video>
+					<audio autoPlay className="hidden" ref={audioRef}></audio>
 				</div>
 			</div>
 		</DocumentTitle>
