@@ -1,29 +1,56 @@
-import { useState, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import DocumentTitle from "react-document-title";
 import Button from "./Button";
+import { Socket } from "socket.io-client";
+
+type RoomProps = {
+	socket: Socket;
+};
 
 type RoomParams = {
 	id: string;
 };
 
-const Room = () => {
+const Room = ({ socket }: RoomProps) => {
 	const { id } = useParams<RoomParams>();
-
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const audioRef = useRef<HTMLAudioElement>(null);
 
 	const [isScreenShared, setScreenShared] = useState(false);
 	const [isMicrophoneShared, setMicrophoneShared] = useState(false);
 
-	async function handleScreenShare() {
-		if (isScreenShared) {
-			if (videoRef.current && videoRef.current.srcObject) {
-				const stream = videoRef.current.srcObject as MediaStream;
+	function handleLeaveRoom() {
+		stopScreenShare();
+		stopMicrophoneShare();
+		history.back();
+	}
+
+	function stopScreenShare() {
+		if (videoRef.current && videoRef.current.srcObject) {
+			const stream = videoRef.current.srcObject as MediaStream;
+			if (stream) {
 				const tracks = stream.getTracks();
 				tracks.forEach((track) => track.stop());
 				videoRef.current.srcObject = null;
 			}
+		}
+	}
+
+	function stopMicrophoneShare() {
+		if (audioRef.current) {
+			const stream = audioRef.current.srcObject as MediaStream;
+			if (stream) {
+				const tracks = stream.getTracks();
+				tracks.forEach((track) => track.stop());
+				audioRef.current.srcObject = null;
+			}
+		}
+	}
+
+	async function handleScreenShare() {
+		if (isScreenShared) {
+			stopScreenShare();
 		} else {
 			try {
 				if (videoRef.current) {
@@ -40,12 +67,7 @@ const Room = () => {
 
 	async function handleMicrophoneShare() {
 		if (isMicrophoneShared) {
-			if (audioRef.current) {
-				const stream = audioRef.current.srcObject as MediaStream;
-				const tracks = stream.getTracks();
-				tracks.forEach((track) => track.stop());
-				audioRef.current.srcObject = null;
-			}
+			stopMicrophoneShare();
 		} else {
 			try {
 				if (audioRef.current) {
@@ -61,8 +83,15 @@ const Room = () => {
 		}
 
 		setMicrophoneShared(!isMicrophoneShared);
-		console.log("microphone shared");
 	}
+
+	useEffect(() => {
+		socket.on("connect", () => {
+			console.log("connected");
+		});
+
+		socket.emit("room:join", id);
+	}, []);
 
 	return (
 		<DocumentTitle title="PeerChat - Room">
@@ -70,9 +99,7 @@ const Room = () => {
 				<div className="h-2/3 w-11/12 flex flex-col mt-10 justify-around">
 					<h1 className="w-max">room id: {id}</h1>
 
-					<Link className="w-max hover:underline block" to="/">
-						Go back
-					</Link>
+					<Button value="leave room" onClick={handleLeaveRoom} />
 
 					<div className="flex mt-2 justify-around">
 						<Button value="toggle share screen" onClick={handleScreenShare} />
