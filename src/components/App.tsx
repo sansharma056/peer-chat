@@ -5,7 +5,7 @@ import Home from "./Home";
 import { StrictMode } from "react";
 import { io } from "socket.io-client";
 
-const socket = io("http://localhost:3000");
+const socket = io(process.env.SIGNALLING_SERVER_URL as string);
 
 const App = () => {
 	return (
