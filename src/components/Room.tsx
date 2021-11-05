@@ -14,7 +14,8 @@ type RoomParams = {
 
 const Room = ({ socket }: RoomProps) => {
 	const { id } = useParams<RoomParams>();
-	const videoRef = useRef<HTMLVideoElement>(null);
+	const videoLocalRef = useRef<HTMLVideoElement>(null);
+	const videoRemoteRef = useRef<HTMLVideoElement>(null);
 	const audioRef = useRef<HTMLAudioElement>(null);
 
 	const peerConnection = useRef<RTCPeerConnection | null>(null);
@@ -62,8 +63,8 @@ const Room = ({ socket }: RoomProps) => {
 	}
 
 	function handleTrackEvent(event: RTCTrackEvent) {
-		if (videoRef.current) {
-			videoRef.current.srcObject = event.streams[0];
+		if (videoRemoteRef.current) {
+			videoRemoteRef.current.srcObject = event.streams[0];
 		}
 	}
 
@@ -105,18 +106,19 @@ const Room = ({ socket }: RoomProps) => {
 	}
 
 	function handleLeaveRoom() {
-		stopResourceShare(videoRef);
+		stopResourceShare(videoLocalRef);
+		stopResourceShare(videoRemoteRef);
 		stopResourceShare(audioRef);
 		history.back();
 	}
 
-	function stopResourceShare(resourceRef: React.RefObject<HTMLMediaElement>) {
-		if (resourceRef.current && resourceRef.current.srcObject) {
-			const stream = resourceRef.current.srcObject as MediaStream;
+	function stopResourceShare(resourceLocalRef: React.RefObject<HTMLMediaElement>) {
+		if (resourceLocalRef.current && resourceLocalRef.current.srcObject) {
+			const stream = resourceLocalRef.current.srcObject as MediaStream;
 			if (stream) {
 				const tracks = stream.getTracks();
 				tracks.forEach((track) => track.stop());
-				resourceRef.current.srcObject = null;
+				resourceLocalRef.current.srcObject = null;
 			}
 		}
 
@@ -125,14 +127,14 @@ const Room = ({ socket }: RoomProps) => {
 
 	async function handleScreenShare() {
 		if (isScreenShared) {
-			stopResourceShare(videoRef);
+			stopResourceShare(videoLocalRef);
 		} else {
 			try {
 				createPeerConnection();
 				if (peerConnection.current != null) {
-					if (videoRef.current) {
+					if (videoLocalRef.current) {
 						const stream = await navigator.mediaDevices.getDisplayMedia();
-						videoRef.current.srcObject = stream;
+						videoLocalRef.current.srcObject = stream;
 						stream
 							.getTracks()
 							.forEach((track) =>
@@ -208,7 +210,8 @@ const Room = ({ socket }: RoomProps) => {
 				</div>
 
 				<div className="flex flex-grow justify-center mt-10 bg-gray-100 w-11/12">
-					<video autoPlay className="w-auto" ref={videoRef}></video>
+					<video autoPlay id="local" className="w-auto" ref={videoLocalRef} hidden></video>
+					<video autoPlay id="remote" className="w-auto" ref={videoRemoteRef}></video>
 					<audio autoPlay className="hidden" ref={audioRef}></audio>
 				</div>
 			</div>
