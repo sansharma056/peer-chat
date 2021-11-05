@@ -12,8 +12,24 @@ type RoomParams = {
 	id: string;
 };
 
+type Message =
+	| {
+			type: "video-offer" | "video-answer";
+			sdp: RTCSessionDescriptionInit;
+	  }
+	| {
+			type: "new-ice-candidate";
+			candidate: RTCIceCandidateInit;
+	  }
+	| {
+			type: "stream-info";
+			id: string;
+			content: "screen" | "audio";
+	  };
+
 const Room = ({ socket }: RoomProps) => {
 	const { id } = useParams<RoomParams>();
+
 	const videoLocalRef = useRef<HTMLVideoElement>(null);
 	const videoRemoteRef = useRef<HTMLVideoElement>(null);
 	const audioRef = useRef<HTMLAudioElement>(null);
@@ -21,6 +37,7 @@ const Room = ({ socket }: RoomProps) => {
 	const peerConnection = useRef<RTCPeerConnection | null>(null);
 	const [isScreenShared, setScreenShared] = useState(false);
 	const [isMicrophoneShared, setMicrophoneShared] = useState(false);
+	const [streamInfo] = useState(new Map<string, string>());
 
 	async function handleVideoAnswerMsg(sdp: RTCSessionDescriptionInit) {
 		await peerConnection.current
@@ -63,8 +80,17 @@ const Room = ({ socket }: RoomProps) => {
 	}
 
 	function handleTrackEvent(event: RTCTrackEvent) {
-		if (videoRemoteRef.current) {
-			videoRemoteRef.current.srcObject = event.streams[0];
+		const stream = event.streams[0];
+		let resourceRef: HTMLMediaElement | null = null;
+
+		if (streamInfo.get(stream.id) == "screen") {
+			resourceRef = videoRemoteRef.current;
+		} else if (streamInfo.get(stream.id) == "audio") {
+			resourceRef = audioRef.current;
+		}
+
+		if (resourceRef) {
+			resourceRef.srcObject = event.streams[0];
 		}
 	}
 
@@ -82,6 +108,10 @@ const Room = ({ socket }: RoomProps) => {
 	}
 
 	function createPeerConnection() {
+		if (peerConnection.current) {
+			return;
+		}
+
 		peerConnection.current = new RTCPeerConnection({
 			iceServers: [{ urls: "stun:stun.stunprotocol.org" }],
 		});
@@ -112,7 +142,9 @@ const Room = ({ socket }: RoomProps) => {
 		history.back();
 	}
 
-	function stopResourceShare(resourceLocalRef: React.RefObject<HTMLMediaElement>) {
+	function stopResourceShare(
+		resourceLocalRef: React.RefObject<HTMLMediaElement>
+	) {
 		if (resourceLocalRef.current && resourceLocalRef.current.srcObject) {
 			const stream = resourceLocalRef.current.srcObject as MediaStream;
 			if (stream) {
@@ -134,6 +166,13 @@ const Room = ({ socket }: RoomProps) => {
 				if (peerConnection.current != null) {
 					if (videoLocalRef.current) {
 						const stream = await navigator.mediaDevices.getDisplayMedia();
+
+						socket.emit("msg:post", {
+							type: "stream-info",
+							id: stream.id,
+							content: "screen",
+						});
+
 						videoLocalRef.current.srcObject = stream;
 						stream
 							.getTracks()
@@ -155,16 +194,29 @@ const Room = ({ socket }: RoomProps) => {
 		if (isMicrophoneShared) {
 			stopResourceShare(audioRef);
 		} else {
+			createPeerConnection();
+
 			try {
 				if (audioRef.current) {
-					audioRef.current.srcObject =
-						await navigator.mediaDevices.getUserMedia({
-							video: false,
-							audio: true,
-						});
+					const stream = await navigator.mediaDevices.getUserMedia({
+						video: false,
+						audio: true,
+					});
+
+					socket.emit("msg:post", {
+						type: "stream-info",
+						id: stream.id,
+						content: "audio",
+					});
+					stream
+						.getTracks()
+						.forEach((track) =>
+							peerConnection.current?.addTrack(track, stream)
+						);
 				}
 			} catch (error) {
 				console.error(error);
+				destroyPeerConnection();
 			}
 		}
 		setMicrophoneShared(!isMicrophoneShared);
@@ -173,26 +225,22 @@ const Room = ({ socket }: RoomProps) => {
 	useEffect(() => {
 		socket.emit("room:join", id);
 
-		socket.on(
-			"msg:get",
-			(msg: {
-				type: string;
-				sdp?: RTCSessionDescription;
-				candidate?: RTCIceCandidate;
-			}) => {
-				switch (msg.type) {
-					case "video-answer":
-						handleVideoAnswerMsg(msg.sdp!);
-						break;
-					case "video-offer":
-						handleVideoOfferMsg(msg.sdp!);
-						break;
-					case "new-ice-candidate":
-						handleNewICECandidateMsg(msg.candidate!);
-						break;
-				}
+		socket.on("msg:get", (msg: Message) => {
+			switch (msg.type) {
+				case "stream-info":
+					streamInfo.set(msg.id, msg.content);
+					break;
+				case "video-answer":
+					handleVideoAnswerMsg(msg.sdp);
+					break;
+				case "video-offer":
+					handleVideoOfferMsg(msg.sdp);
+					break;
+				case "new-ice-candidate":
+					handleNewICECandidateMsg(msg.candidate);
+					break;
 			}
-		);
+		});
 	}, []);
 
 	return (
@@ -210,9 +258,20 @@ const Room = ({ socket }: RoomProps) => {
 				</div>
 
 				<div className="flex flex-grow justify-center mt-10 bg-gray-100 w-11/12">
-					<video autoPlay id="local" className="w-auto" ref={videoLocalRef} hidden></video>
-					<video autoPlay id="remote" className="w-auto" ref={videoRemoteRef}></video>
-					<audio autoPlay className="hidden" ref={audioRef}></audio>
+					<video
+						autoPlay
+						id="local"
+						className="w-auto"
+						ref={videoLocalRef}
+						hidden
+					></video>
+					<video
+						autoPlay
+						id="remote"
+						className="w-auto"
+						ref={videoRemoteRef}
+					></video>
+					<audio autoPlay id="remote" className="hidden" ref={audioRef}></audio>
 				</div>
 			</div>
 		</DocumentTitle>
