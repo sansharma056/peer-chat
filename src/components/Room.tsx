@@ -46,8 +46,6 @@ const Room = ({ socket }: RoomProps) => {
 	}
 
 	function handleVideoOfferMsg(sdp: RTCSessionDescriptionInit) {
-		createPeerConnection();
-
 		peerConnection.current
 			?.setRemoteDescription(new RTCSessionDescription(sdp))
 			.then(() => peerConnection.current?.createAnswer())
@@ -153,8 +151,6 @@ const Room = ({ socket }: RoomProps) => {
 				resourceLocalRef.current.srcObject = null;
 			}
 		}
-
-		destroyPeerConnection();
 	}
 
 	async function handleScreenShare() {
@@ -162,7 +158,6 @@ const Room = ({ socket }: RoomProps) => {
 			stopResourceShare(videoLocalRef);
 		} else {
 			try {
-				createPeerConnection();
 				if (peerConnection.current != null) {
 					if (videoLocalRef.current) {
 						const stream = await navigator.mediaDevices.getDisplayMedia();
@@ -194,8 +189,6 @@ const Room = ({ socket }: RoomProps) => {
 		if (isMicrophoneShared) {
 			stopResourceShare(audioRef);
 		} else {
-			createPeerConnection();
-
 			try {
 				if (audioRef.current) {
 					const stream = await navigator.mediaDevices.getUserMedia({
@@ -224,6 +217,7 @@ const Room = ({ socket }: RoomProps) => {
 
 	useEffect(() => {
 		socket.emit("room:join", id);
+		createPeerConnection();
 
 		socket.on("msg:get", (msg: Message) => {
 			switch (msg.type) {
@@ -241,6 +235,8 @@ const Room = ({ socket }: RoomProps) => {
 					break;
 			}
 		});
+
+		return () => destroyPeerConnection();
 	}, []);
 
 	return (
